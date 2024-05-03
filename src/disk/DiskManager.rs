@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::ptr::null;
 
 pub struct  DiskManager {
     heap_file: File,
@@ -9,25 +10,15 @@ pub struct  DiskManager {
 
 impl DiskManager {
     pub fn new(heap_file: File) -> Self {
-        let next_page_id = heap_file.metadata().unwrap().len() / PAGE_SIZE as u64;
-        DiskManager {
-            heap_file,
-            next_page_id,
-        }
+        let heap_file_size = heap_file.metadata()?.len();
+        let next_page_id = heap_file_size / PAGE_SIZE as u64;
     }
-    pub fn allocate_page(&mut self) -> PageId {
-        let page_id = self.next_page_id;
-        self.next_page_id += 1;
-        page_id
-    }
-    pub fn fetch_page_data(&mut self, page_id: PageId) -> Page {
-        let mut data = vec![0; PAGE_SIZE];
-        self.heap_file.seek(SeekFrom::Start(page_id * PAGE_SIZE as u64)).unwrap();
-        self.heap_file.read_exact(&mut data).unwrap();
-        data
-    }
-    pub fn write_page_data(&mut self, page_id: PageId, data: &Page) {
-        self.heap_file.seek(SeekFrom::Start(page_id * PAGE_SIZE as u64)).unwrap();
-        self.heap_file.write_all(data).unwrap();
+    pub fn open(data_file_path: impl AsRef<Path>) -> io::Result<Self> {
+        let heap_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(data_file_path)?;
+        Self::new(heap_file)
     }
 }
